@@ -157,7 +157,10 @@ for fname in pbar:
         npz_index = int(npz_index)
         # vol = npzblob[f'{npz_split}_images'][npz_index].astype(float)
         if 'simulated' not in args.dataroot:
-            vol = npzcache[npz_split][npz_index].astype(float)
+            vol = npzcache[npz_split][npz_index]
+            if type(vol) in [str, np.str_]:
+                vol = npy_npz_priority_load(f'/u/scratch/u/ulzee/{vol}')
+            vol = vol.astype(float)
         else:
             if 'location' in args.dataroot:
                 vol = npy_npz_priority_load(f'{args.dataroot}_{fname}.npz')[0].astype(float)
@@ -281,24 +284,25 @@ for fname in pbar:
 
     tls = []
     for (projname, projmat) in projfiles:
+        t0 = time()
         if projmat is not None:
             projname = projname.split('/')[-1].split('.')[0]
             if len(args.planes) < 3:
                 projname = f'p{"".join(args.planes)}_{projname}'
 
-            # embs: slices (~16) x 256 x 16 x 16
+            # projmat: D x K         (D: ViT dim, K: projections)
+            # embs: S x D x 16 x 16  (S: slices)
             assert len(projmat) == len(embs[0])
-            t0 = time()
-            proj_embs = np.stack([projmat.T @ e.reshape(projmat.shape[0], -1) for e in embs])
+            # proj_embs = np.stack([projmat.T @ e.reshape(projmat.shape[0], -1) for e in embs])
         else:
-            proj_embs = np.array(embs).reshape(len(embs), -1)
+            # proj_embs = np.array(embs).reshape(len(embs), -1)
+            raise 'WARN: check dims'
         if not os.path.exists(f'{args.saveto}/{projname}'):
             os.makedirs(f'{args.saveto}/{projname}')
-        print(projname, time() - t0)
 
         # proj_embs: slices (16 + 16 + 16) x K x 256
         # proj_embs_sum: slices 3 x K x 16 x 16
-        assert np.sum(ntot) == len(proj_embs)
+        assert np.sum(ntot) == len(embs)
 
         if args.planar:
             plane_breaks = []
@@ -307,9 +311,11 @@ for fname in pbar:
                 plane_breaks += [s_count + agg]
                 agg += s_count
 
-            byside = [s for s in np.split(proj_embs, plane_breaks, axis=0) if len(s)]
+            byside = [s for s in np.split(embs, plane_breaks, axis=0) if len(s)]
+            byside = [s.mean(0) for s in byside]
+            byside = [projmat.T @ s.reshape(projmat.shape[0], -1) for s in byside]
             # assert len(byside) == 3
-            byside = [side.sum(0) for side in byside]
+            # byside = [side.sum(0) for side in byside]
             proj_embs_sum = np.concatenate(byside)
 
             # proj_embs_sum: slices 3K x 256 ~ 7680 for K=10
