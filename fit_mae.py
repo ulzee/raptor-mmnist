@@ -5,7 +5,6 @@
 import torch
 import torch.nn as nn
 from einops import rearrange
-# from transformers.models.vit_mae.modeling_vit_mae import ViTMAEForPreTraining, ViTMAEConfig, ViTMAEEmbeddings, ViTMAEPatchEmbeddings
 from transformers.models.vit_mae.modeling_vit_mae import ViTMAEConfig
 from transformers import Trainer, TrainingArguments
 import numpy as np
@@ -77,7 +76,7 @@ config = ViTMAEConfig(
 model = ViTMAEForPreTraining(config).to(device)
 model
 #%%
-if not args.load_pretrained:
+if not args.predict and not args.load_pretrained:
     class HFVolumeDataset(torch.utils.data.Dataset):
         def __init__(self, split, patch_size):
             self.split = split
@@ -152,7 +151,8 @@ else:
 optimizer = torch.optim.AdamW(cls.parameters(), lr=args.lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.epochs//4, gamma=0.1)
 
-
+if args.predict:
+    cls.load_state_dict(torch.load(f'saved/{args.task}/{args.model}_best.pth'))
 # %%
 datasets = { ph: MM3dVolDataset(ph, f'../medmnist/{args.task}_64.npz', bulkpath=args.bulkpath) for ph in ['train', 'val', 'test']}
 loaders = { ph: DataLoader(d, batch_size=8, shuffle=ph=='train') for ph, d in datasets.items()  }
@@ -211,7 +211,7 @@ for epoch in range(1 if args.predict else args.epochs):
         if not args.predict:
             if ph == 'val' and losshist[0]/losshist[1] < best_val_loss:
                 best_val_loss = losshist[0]/losshist[1]
-                torch.save(model.state_dict() , f'saved/{args.task}/{args.model}_best.pth')
+                torch.save(cls.state_dict() , f'saved/{args.task}/{args.model}_best.pth')
     scheduler.step()
 
 if not args.predict: print('Finished Training')
