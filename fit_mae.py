@@ -12,8 +12,9 @@ import numpy as np
 from tqdm import tqdm
 from vit3d import ViTMAEForPreTraining
 import argparse
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from datasets import MM3dVolDataset
+from datasets import MM3dVolDataset, npy_npz_priority_load
 import pandas as pd
 #%%
 class args:
@@ -23,8 +24,10 @@ class args:
     device = 'cuda:0'
     lr = 1e-4
     predict = False
-    epochs = 100
+    pretrain_epochs = 4
+    epochs = 4
     model = 'mae'
+    bulkpath = None
 #%%
 # task = 'organmnist3d'
 parser = argparse.ArgumentParser(description='Train embedding model')
@@ -32,12 +35,14 @@ parser.add_argument('--task', type=str, required=True, help='Task name')
 # parser.add_argument('--model', type=str, required=True)
 parser.add_argument('--batch-size', default=8, type=int)
 parser.add_argument('--epochs', default=100, type=int)
+parser.add_argument('--pretrain_epochs', default=10, type=int)
 parser.add_argument('--lr', default=1e-4, type=float)
 parser.add_argument('--device', default='cuda:0', type=str)
 parser.add_argument('--predict', default=False, action='store_true')
 parser.add_argument('--bulkpath', default=None, type=str)
 parser.add_argument('--regression', default=False, action='store_true')
 parser.add_argument('--multilabel', default=False, action='store_true')
+parser.add_argument('--load-pretrained', default=False, action='store_true')
 
 args = parser.parse_args()
 args.model = 'mae'
@@ -52,7 +57,10 @@ print(f'Num classes: {num_classes}')
 # Define patch size and volume size
 device = torch.device(args.device)
 patch_size = (16, 16, 16)  # Depth, Height, Width of each patch
-volume_size = meta['train_images'][0].shape
+if type(meta['train_images'][0]) in [str, np.str_]:
+    volume_size = npy_npz_priority_load(args.bulkpath + '/' + meta['train_images'][0]).shape
+else:
+    volume_size = meta['train_images'][0].shape
 volume_size
 #%%
 
@@ -69,49 +77,55 @@ config = ViTMAEConfig(
 model = ViTMAEForPreTraining(config).to(device)
 model
 #%%
-class HFVolumeDataset(torch.utils.data.Dataset):
-    def __init__(self, split, patch_size):
-        self.split = split
-        self.patch_size = patch_size
-        self.volumes = meta[f'{self.split}_images'][:]
-        self.column_names = ["pixel_values", "labels"]
-        self.__version__ = '0'
+if not args.load_pretrained:
+    class HFVolumeDataset(torch.utils.data.Dataset):
+        def __init__(self, split, patch_size):
+            self.split = split
+            self.patch_size = patch_size
+            self.volumes = meta[f'{self.split}_images'][:]
+            self.column_names = ["pixel_values", "labels"]
+            self.__version__ = '0'
 
-    def __len__(self):
-        return len(meta[f'{self.split}_labels'])
+        def __len__(self):
+            return len(meta[f'{self.split}_labels'])
 
-    def __getitem__(self, idx):
-        volume = self.volumes[idx][np.newaxis, :].astype(np.float32)/255
-        volume = torch.from_numpy(volume)
-        return {"pixel_values": volume  }
+        def __getitem__(self, idx):
+            volume = self.volumes[idx]
 
-sample_dset = HFVolumeDataset('train', patch_size)
-for sample in tqdm(sample_dset):
-    pass
-#%%
-training_args = TrainingArguments(
-    output_dir=f'./saved/{args.task}/mae',
-    per_device_train_batch_size=4,
-    num_train_epochs=10,
-    # num_train_epochs=1,
-    save_total_limit=2,
-    save_steps=100,
-    logging_steps=100,
-    eval_steps=100,
-    eval_strategy="steps",
-    label_names=["pixel_values"],
-)
+            if type(volume) in [str, np.str_]:
+                volume = npy_npz_priority_load(args.bulkpath + '/' + volume)
 
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=HFVolumeDataset('train', patch_size),
-    eval_dataset=HFVolumeDataset('val', patch_size),
-)
+            volume = volume[np.newaxis, :].astype(np.float32)/255
+            volume = torch.from_numpy(volume)
+            return {"pixel_values": volume  }
 
-trainer.train()
-#%%
-torch.save(model.state_dict(), f'saved/{args.task}/{args.model}_weights.pth')
+    sample_dset = HFVolumeDataset('train', patch_size)
+    for sample in tqdm(sample_dset):
+        pass
+    #%%
+    training_args = TrainingArguments(
+        output_dir=f'./saved/{args.task}/mae',
+        per_device_train_batch_size=4,
+        num_train_epochs=args.pretrain_epochs,
+        # num_train_epochs=1,
+        save_total_limit=2,
+        save_steps=100,
+        logging_steps=100,
+        eval_steps=100,
+        eval_strategy="steps",
+        label_names=["pixel_values"],
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=HFVolumeDataset('train', patch_size),
+        eval_dataset=HFVolumeDataset('val', patch_size),
+    )
+
+    trainer.train()
+    #%%
+    torch.save(model.state_dict(), f'saved/{args.task}/{args.model}_weights.pth')
 #%%
 model.load_state_dict(torch.load(f'saved/{args.task}/{args.model}_weights.pth'))
 # %%
@@ -140,7 +154,7 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.epochs//4,
 
 
 # %%
-datasets = { ph: MM3dVolDataset(ph, f'../medmnist/{args.task}_64.npz') for ph in ['train', 'val', 'test']}
+datasets = { ph: MM3dVolDataset(ph, f'../medmnist/{args.task}_64.npz', bulkpath=args.bulkpath) for ph in ['train', 'val', 'test']}
 loaders = { ph: DataLoader(d, batch_size=8, shuffle=ph=='train') for ph, d in datasets.items()  }
 
 hist = []
@@ -163,6 +177,8 @@ for epoch in range(1 if args.predict else args.epochs):
         optimizer.zero_grad()
         for i, data in enumerate(pbar):
             inputs = data[0].to(device).unsqueeze(1).float()/255
+            if inputs.shape[-3:] != (volume_size[0],)*3:
+                inputs = F.interpolate(inputs, (volume_size[0],)*3, mode='trilinear')
             if args.regression or args.multilabel:
                 labels = data[1].float().to(device)
             else:
