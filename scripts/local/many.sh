@@ -1,0 +1,4 @@
+./scripts/local/job.sh /data2/medmnist/octmnist_224.npz SAM saved/manifests/octmnist.txt 0 3000 /data2/bsplat/data/embs/dec3_oct --all_slices --device cuda:0
+./scripts/local/job.sh /data2/medmnist/octmnist_224.npz SAM saved/manifests/octmnist.txt 3000 3000 /data2/bsplat/data/embs/dec3_oct --all_slices --device cuda:1
+./scripts/local/job.sh /data2/medmnist/octmnist_224.npz SAM saved/manifests/octmnist.txt 6000 3000 /data2/bsplat/data/embs/dec3_oct --all_slices --device cuda:2
+# ./scripts/local/job.sh /data2/medmnist/octmnist_224.npz SAM saved/manifests/octmnist.txt 72500 110000 /data2/bsplat/data/embs/dec3_oct --all_slices --device cuda:3

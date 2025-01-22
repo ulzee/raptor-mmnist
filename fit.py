@@ -145,9 +145,8 @@ if args.model != 'retr':
     if val_y.shape[1] == 1:
         val_y = val_y[:, 0]
 
-    nclasses = int(np.max(train_y) + 1)
+    # nclasses = int(np.max(train_y) + 1)
     data_mats = dict(train=train_x_mat, val=val_x_mat, test=test_x_mat)
-    print(nclasses)
 #%%
 
 if args.planes is not None:
@@ -180,9 +179,11 @@ for phase in phases:
                 lroptions['penalty'] = args.penalty
             if args.alpha:
                 lroptions['C'] = args.alpha
+
             mdl = LogisticRegression(**lroptions)
+            if len(train_y.shape) > 1:
+                mdl = OneVsRestClassifier(mdl)
             mdl.fit(train_x_mat, train_y)
-            # NOTE: might not be exclusive labels
 
         pred_allvars = mdl.predict_proba(data_mats[phase])
 
