@@ -25,23 +25,11 @@ embname = sys.argv[2] #'dec16_Merlin_{task}-raw'
 #%%
 print(dsets_str)
 print(embname)
-# mdl_options = sys.argv[3]
-# knum = 100
-# embname = 'dec15_DINO_{task}-proj_normal_d1024_k%d_contr_run1' % knum
-# embname = 'dec14_DINO_{task}-proj_normal_d1024_k%d_run3' % knum
-# embname = 'dec16_VoCo_{task}-avg_cat'
-# embname = 'dec16_VoCo_{task}-planar_avg_cat'
-# probe = f'logr{mdl_options}-l2'
+
 probe = f'logr-l2'
 lrs = [0.0000001, 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
-# lrs = [0.0000001, 0.000001]
-# if 'dec15' in embname or 'dec14' in embname:
-#     lrs += []
-# embname = 'dec9_DINO_{task}-proj_normal_d1024_k%d_run3' % knum
-# embname = 'dec9_SAM_{task}-proj_normal_d256_k%d_run3' % knum
-# for task in ['adrenal', 'vessel']:
-# for task in ['fracture']:
 dsets = dsets_str.split(',') #['adrenal', 'fracture', 'nodule', 'organ', 'synapse', 'vessel']
+
 dfolders = []
 if 'simulated' in embname:
     dfolders = ['nodule']
@@ -50,14 +38,12 @@ else:
 for dfl, task in zip(dfolders, dsets):
     load_emb = embname.replace('DATASET', task)
     mdls = [
-        # f'saved/{task}mnist{voltag}/predictions_[split]_{probe}_best{flag}_dec3_{task}-proj_normal_k100.csv',
         f'saved/{dfl}/predictions_[split]_{probe}_best{flag}_{load_emb}.csv',
     ]
 
-    # if mdl_options:
-    #     mdls[0] = mdls[0].replace('_best', f'-{mdl_options}_best')
-    # print(mdls)
-    # assert False
+    if len(sys.argv) > 3:
+        mdls[0] = mdls[0].replace('_best', f'-{sys.argv[3]}_best')
+
 
     preds_by_split = dict()
     for split in ['train', 'val', 'test']:
@@ -103,9 +89,6 @@ for dfl, task in zip(dfolders, dsets):
         simtask = load_emb.split('simulated_')[1].split('_')[0]
         ldf = np.load(f'../medmnist/simulated/{simtask}/test_labels.npy')
 
-        # if 'location' in load_emb:
-        #     cls_idx = [4, 8, 16, 32, 64, 128].index(int(mdl_options.split('etc')[1]))
-        #     ldf = np.array([[[0, 1][int(lb[0] == cls_idx)]] for lb in ldf])
     else:
         ldf = np.load(f'../medmnist/{task}mnist{voltag}_{resolution}.npz')[f'test_labels']
     if ldf.shape[1] == 1:
@@ -114,9 +97,6 @@ for dfl, task in zip(dfolders, dsets):
         nclasses = ldf.shape[1]
 
     print('Nclases:', nclasses)
-
-    # print(bylr[0][1].shape)
-    # assert False
 
     ls_by_class = []
     for ci, c in enumerate(range(nclasses)):
@@ -127,8 +107,6 @@ for dfl, task in zip(dfolders, dsets):
         plt.subplot(1, nclasses, ci+1)
         # c = target_all.columns[0]
         styles = [ 'dotted', 'dashed', 'solid' ]
-        # styles = [ 'dotted', 'solid' ]
-        # for si, split in enumerate(['train', 'test']):
 
         for si, split in enumerate(['val', 'test']):
         # for si, split in enumerate(['train', 'val', 'test']):
@@ -138,9 +116,6 @@ for dfl, task in zip(dfolders, dsets):
                 simtask = load_emb.split('simulated_')[1].split('_')[0]
                 ldf = np.load(f'../medmnist/simulated/{simtask}/{split}_labels.npy')
 
-                # if 'location' in load_emb:
-                #     cls_idx = [4, 8, 16, 32, 64, 128].index(int(mdl_options.split('etc')[1]))
-                #     ldf = np.array([[[0, 1][int(lb[0] == cls_idx)]] for lb in ldf])
             else:
                 ldf = np.load(f'../medmnist/{task}mnist{voltag}_{resolution}.npz')[f'{split}_labels']
 
@@ -153,36 +128,19 @@ for dfl, task in zip(dfolders, dsets):
 
             labels = ldfmat[:, ci]
 
-            # targets_by_split[split] = resids
-
-            # boot_ixs = np.load(f'saved/icd/boots10_{split}.npy')
-
             for mi, (mdl, bylr) in enumerate(preds_by_split[split]):
                 test_scores[ci][mi] = dict()
 
                 ls = []
                 for lr, pdf in bylr:
                     reps = []
-                    # for bls in boot_ixs:
-                    #     # bls = bls[:nboots]
-                    #     reps += [evalfn(resids.loc[pdf.index][c].values[bls], pdf[c].values[bls])]
-                    # if lr == None and split == 'test':
-                    #     plt.axhline(np.mean(reps), color=f'C{mi}', alpha=0.3)
-                    # else:
+
                     preds = pdf[str(c)].values
                     if np.isnan(np.sum(labels)): print('Label has nans')
                     if np.isnan(np.sum(preds)): print('Preds have nans')
                     est = evalfn(labels, preds)
 
                     ls += [est]
-                    # if split == 'test':
-                    #     test_scores[ci][mi][lr] = [np.mean(reps), reps]
-
-                    # if split == 'val':
-                    #     if lr is None: continue
-                    #     if best_test_by_val[ci][mi] is None or np.mean(reps) > best_test_by_val[ci][mi][0]:
-                    #         # keep the test scores
-                    #         best_test_by_val[ci][mi] = [np.mean(reps), lr, None]
 
                 plt.plot(
                     range(len(ls)),
@@ -196,7 +154,6 @@ for dfl, task in zip(dfolders, dsets):
 
         plt.xticks(range(len(lrs)), lrs)
         plt.legend()
-
 
     best_ix = np.argmax(np.mean(ls_by_class, axis=0))
     print('Best alpha:', lrs[best_ix], np.mean(ls_by_class, axis=0)[best_ix])

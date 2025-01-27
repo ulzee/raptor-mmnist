@@ -46,7 +46,7 @@ parser.add_argument('--batch_size', type=int, default=64, help='Batch size')
 parser.add_argument('--saveto', type=str, required=True, help='Save directory')
 parser.add_argument('--k', type=str, default=None)
 # parser.add_argument('--all_slices', default=True)
-parser.add_argument('--no_flatviews', default=False, action='store_true')
+# parser.add_argument('--no_flatviews', default=False, action='store_true')
 parser.add_argument('--planar', default=False, action='store_true')
 parser.add_argument('--planes', default='A,C,S')
 parser.add_argument('--avgpool', default=False, action='store_true')
@@ -215,8 +215,8 @@ for fname in pbar:
         for i in range(0, vol.shape[0]-0):
             if vol[i].shape[0] == 1 or vol[i].shape[1] == 1: continue
             slices += [vol[i]]
-        if not args.no_flatviews:
-            slices += [vol.mean(0)]
+        # if not args.no_flatviews:
+            # slices += [vol.mean(0)]
         nx = len(slices)
         ntot += [nx]
         slices_byxyz += slices
@@ -226,8 +226,8 @@ for fname in pbar:
         for i in range(0, vol.shape[1]-0):
             if vol[:, i].shape[0] == 1 or vol[:, i].shape[1] == 1: continue
             slices += [vol[:, i]]
-        if not args.no_flatviews:
-            slices += [vol.mean(1)]
+        # if not args.no_flatviews:
+            # slices += [vol.mean(1)]
         ny = len(slices)
         ntot += [ny]
         slices_byxyz += slices
@@ -237,8 +237,8 @@ for fname in pbar:
         for i in range(0, vol.shape[2]-0):
             if vol[:, :, i].shape[0] == 1 or vol[:, :, i].shape[1] == 1: continue
             slices += [vol[:, :, i]]
-        if not args.no_flatviews:
-            slices += [vol.mean(2)]
+        # if not args.no_flatviews:
+            # slices += [vol.mean(2)]
         nz = len(slices)
         ntot += [nz]
         slices_byxyz += slices

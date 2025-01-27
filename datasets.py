@@ -5,23 +5,30 @@ import os
 from glob import glob
 
 class MM3dVolDataset(Dataset):
-    def __init__(self, split, datapath, bulkpath=None, stats=None):
+    def __init__(self, manifest, split, datapath, bulkpath=None, stats=None):
         self.split = split
         self.datapath = datapath
+        self.manifest = manifest
         self.stats = stats
         self.bulkpath = bulkpath
+
+        self.split_ids = [i for i in manifest if split in i]
 
         self.vols = np.load(f'{datapath}')[f'{split}_images']
         self.labs = np.load(f'{datapath}')[f'{split}_labels'][:]
 
     def __len__(self):
-        return len(self.labs)
+        return len(self.split_ids)
 
     def __getitem__(self, index):
-        vol = self.vols[index]
+        id = self.split_ids[index]
+
+        data_ix = int(id.split('_')[1])
+
+        vol = self.vols[data_ix]
         if isinstance(vol, np.str_):
             vol = npy_npz_priority_load(self.bulkpath + '/' + vol)
-        lab = self.labs[index]
+        lab = self.labs[data_ix]
         return vol, lab
 
 def npy_npz_priority_load(fname):

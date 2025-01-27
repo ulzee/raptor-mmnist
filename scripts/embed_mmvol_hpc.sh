@@ -5,8 +5,8 @@ encoder=$1
 saveroot=$2
 datasets=$3
 GPU=RTX2080Ti
-# GPU=H100
 # GPU=A100
+# GPU=H100
 use_manifest=main
 # use_manifest=missing
 
@@ -40,7 +40,8 @@ do
     mkdir $saveto
 
     if [ "$use_manifest" == "missing" ]; then
-        manifest=saved/manifests/missing_${encoder}_${dset}.txt
+        # manifest=saved/manifests/missing_${encoder}_${dset}.txt
+        manifest=saved/manifests/missing_${dset}mnist3d.txt
     else
         manifest=saved/manifests/${dset}mnist3d.txt
     fi

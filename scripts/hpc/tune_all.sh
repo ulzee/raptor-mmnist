@@ -35,7 +35,7 @@ else
         for run in {1,2,3}
         do
             use_emb=${embname/run1/"run$run"}
-            python save_best_l2_crossval.py $dset $use_emb ""
+            python save_best_l2_crossval.py $dset $use_emb $4 $5 $6
 
             if [[ $embname == *"VoCo"* || $embname == *"Merlin"* ]]; then
                 break

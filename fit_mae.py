@@ -94,8 +94,11 @@ if not args.predict and not args.load_pretrained:
             if type(volume) in [str, np.str_]:
                 volume = npy_npz_priority_load(args.bulkpath + '/' + volume)
 
+
             volume = volume[np.newaxis, :].astype(np.float32)/255
             volume = torch.from_numpy(volume)
+            if volume.shape != (volume_size[0],)*3:
+                volume = F.interpolate(volume.unsqueeze(0), (volume_size[0],)*3, mode='trilinear').squeeze(0)
             return {"pixel_values": volume  }
 
     sample_dset = HFVolumeDataset('train', patch_size)

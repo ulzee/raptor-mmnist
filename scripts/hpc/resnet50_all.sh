@@ -9,5 +9,5 @@ for dset in $(echo $datasets | tr ',' '\n')
 do
     qsub -cwd \
         -N resnet50-${dset} -l gpu,cuda=1,RTX2080Ti,h_rt=03:00:00 -o logs -j y \
-        ./scripts/hpc/fit_e2e_job.sh --task ${dset}mnist3d --model resnet50 --batch-size 8 --lr 1e-4 --epochs 10 $etc
+        ./scripts/hpc/fit_e2e_job.sh --task ${dset}mnist3d --model resnet50 --batch-size 8 --lr 1e-5 --epochs 30 $etc
 done

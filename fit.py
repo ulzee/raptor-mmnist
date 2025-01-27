@@ -54,6 +54,7 @@ parser.add_argument('--layers', default=1, type=int)
 parser.add_argument('--temperature', default=None, type=float)
 parser.add_argument('--etc', default=None, type=str)
 parser.add_argument('--epochs', default=100, type=int)
+parser.add_argument('--sub', default=None, type=int)
 
 args = parser.parse_args()
 #%%
@@ -77,6 +78,8 @@ if args.alpha is not None:
     pflag += f'-a{args.alpha}'
 if args.etc is not None:
     pflag += f'-etc{args.etc}'
+if args.sub is not None:
+    pflag += f'-sub{args.sub}'
 
 if args.model == 'retr':
     pflag += f'-l{args.layers}'
@@ -93,7 +96,10 @@ if args.model == 'retr':
 # else:
 savename = f'{args.model}{pflag}_best_{embname}'
 task_name = args.task.split("_")[0]
-manifest = np.genfromtxt(f'saved/manifests/{task_name}.txt', dtype=str)
+if args.sub is None:
+    manifest = np.genfromtxt(f'saved/manifests/{task_name}.txt', dtype=str)
+else:
+    manifest = np.genfromtxt(f'saved/manifests/{task_name}_sub{args.sub}.txt', dtype=str)
 phase_ids = dict()
 for ph in phases:
     phase_ids[ph] = [i for i in manifest if ph in i]
